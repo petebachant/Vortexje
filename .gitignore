@@ -1,1 +1,17 @@
 build
+CMakeFiles/
+*.cmake
+CMakeCache.txt
+*~
+*Makefile
+install_manifest.txt
+doc/Doxyfile
+examples/clarky-section
+examples/gmsh-lifting-surface
+examples/naca0012-section-oscillation
+examples/vawt
+install_manifest.txt
+tests/test-naca0012-airfoil
+tests/test-sphere
+vortexje.pc
+vortexje/libvortexje.so

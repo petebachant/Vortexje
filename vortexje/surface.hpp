@@ -46,6 +46,7 @@ public:
     
     void compute_topology();
     void compute_geometry();
+    void flip_normals();
     
     int n_nodes() const;
     int n_panels() const;
