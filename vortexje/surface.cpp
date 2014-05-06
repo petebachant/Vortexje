@@ -324,7 +324,7 @@ void
 Surface::flip_normals()
 {
     for (int i = 0; i < n_panels(); i++) {
-    panel_normals[i] = panel_normals[i].reverse();
+    panel_normals[i].reverse();
     }
 }
 
