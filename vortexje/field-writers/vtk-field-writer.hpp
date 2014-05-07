@@ -32,7 +32,7 @@ public:
                               double x_min, double x_max,
                               double y_min, double y_max,
                               double z_min, double z_max,
-                              double dx, double dy, double dz);
+                              int nx, int ny, int nz);
                               
     bool write_velocity_potential_field(const Solver &solver,
                                         const std::string &filename,
