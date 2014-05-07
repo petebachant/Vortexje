@@ -55,9 +55,11 @@ VTKFieldWriter::write_velocity_field(const Solver &solver, const std::string &fi
 {
     cout << "Solver: Computing and saving velocity vector field to " << filename << "." << endl;
     
-    double dx = (x_max - x_min)/nx;
-    double dy = (y_max - y_min)/ny;
-    double dz = (z_max - z_min)/nz;
+    double dx;
+    if (nx > 1) dx = (x_max - x_min)/(nx - 1);
+    else dx = 0;
+    double dy = (y_max - y_min)/(ny - 1);
+    double dz = (z_max - z_min)/(nz - 1);
 
     // Write output in VTK format:
     ofstream f;
