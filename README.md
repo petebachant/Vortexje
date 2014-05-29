@@ -7,8 +7,8 @@ Vortexje is an open-source implementation of the source-doublet panel method. It
   * Gmsh file I/O
   * Optional dynamic wake emission.
 
-Dependencies:
--------------
+Dependencies
+------------
  * Eigen3, a C++ template library for linear algebra:
    http://eigen.tuxfamily.org/
  * CMake, to generate the build files:
@@ -16,8 +16,8 @@ Dependencies:
  * Optionally Doxygen, to generate the documentation:
    http://www.stack.nl/~dimitri/doxygen/
    
-Installation:
--------------
+Installation
+------------
  * Run `CMake .` to generate the build files.
  * Build Vortexje using the chosen build system, e.g., by executing `make`.
  
