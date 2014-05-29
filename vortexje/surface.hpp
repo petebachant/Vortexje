@@ -48,6 +48,8 @@ public:
     void compute_geometry();
     void flip_normals();
     
+    void cut_panels(int panel_a, int panel_b);
+    
     int n_nodes() const;
     int n_panels() const;
 
