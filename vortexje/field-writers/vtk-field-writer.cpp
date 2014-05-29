@@ -46,6 +46,65 @@ VTKFieldWriter::file_extension() const
    
    @returns true on success.
 */
+
+bool
+VTKFieldWriter::write_velocity_field_surf(const Solver &solver, const std::string &filename,
+                                     double x_min, double x_max,
+                                     double y_min, double y_max,
+                                     double z_min, double z_max,
+                                     int nx, int ny, int nz,
+                                     const Surface &boundarySurface)
+{
+    cout << "Solver: Computing and saving velocity vector field to " << filename << "." << endl;
+    
+    double dx;
+    if (nx > 1) dx = (x_max - x_min)/(nx - 1);
+    else dx = 0;
+    double dy = (y_max - y_min)/(ny - 1);
+    double dz = (z_max - z_min)/(nz - 1);
+
+    // Write output in VTK format:
+    ofstream f;
+    f.open(filename.c_str());
+    
+    write_preamble(f, x_min, y_min, z_min, dx, dy, dz, nx, ny, nz);
+    
+    double x, y, z;
+    
+    // Velocity vector field;    
+    f << "VECTORS Velocity double" << endl;
+    
+    z = z_min;
+    for (int i = 0; i < nz; i++) {
+        y = y_min;
+        for (int j = 0; j < ny; j++) {
+            x = x_min;
+            for (int k = 0; k < nx; k++) {
+                Vector3d v = solver.velocity(Vector3d(x, y, z));
+                
+                // If velocity is a NaN, use surface_velocity method
+                // needs fixing to detect boundarySurface automatically...
+                if (v(0) != v(0))
+                    v = solver.surface_velocity(boundarySurface, 0);
+                
+                f << v(0) << " " << v(1) << " " << v(2) << endl;
+            
+                x += dx;
+            }
+            
+            y += dy;
+        }
+        
+        z += dz;
+    }
+    
+    // Close file:
+    f.close();
+    
+    // Done:
+    return true;
+}
+
 bool
 VTKFieldWriter::write_velocity_field(const Solver &solver, const std::string &filename,
                                      double x_min, double x_max,
