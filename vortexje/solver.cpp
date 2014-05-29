@@ -1032,7 +1032,7 @@ Solver::compute_surface_velocity_potential_time_derivative(int offset, int panel
    Computes the surface velocity for the given panel.
    
    @param[in]   surface                     Reference surface.
-   @param[it]   offset                      Doublet coefficien vector offset.
+   @param[it]   offset                      Doublet coefficient vector offset.
    @param[in]   panel                       Reference panel.
    
    @returns Surface velocity.
