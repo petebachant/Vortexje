@@ -5,10 +5,13 @@ project(Vortexje)
 set(Vortexje_VERSION_MAJOR 0)
 set(Vortexje_VERSION_MINOR 2)
 
+# Use C++11.
+include("cmake/set_cxx_norm.cmake")
+set_cxx_norm(CXX_NORM_CXX11)
+
 # Use Eigen3.
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
-find_package(Eigen3 REQUIRED)
+find_package(Eigen3 3.2.2 REQUIRED)
 
 # Base compiler flags
 if(CMAKE_COMPILER_IS_GNUCXX)

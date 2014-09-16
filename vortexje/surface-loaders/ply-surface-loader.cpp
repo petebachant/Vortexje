@@ -17,9 +17,9 @@ using namespace Eigen;
 using namespace Vortexje;
 
 /**
-   Returns the PLY file extension (".msh").
+   Returns the PLY file extension (".ply").
    
-   @returns The PLY file extension (".msh").
+   @returns The PLY file extension (".ply").
 */
 const char *
 PLYSurfaceLoader::file_extension() const
@@ -28,25 +28,27 @@ PLYSurfaceLoader::file_extension() const
 }
 
 // rply parser callbacks.
-static int vertex_cb(p_ply_argument argument)
+static int
+vertex_cb(p_ply_argument argument)
 {
     void *ptr;
     long index;
     ply_get_argument_user_data(argument, &ptr, &index);
     
-    PLYSurfaceLoader *loader = (PLYSurfaceLoader *) ptr;
+    PLYSurfaceLoader *loader = static_cast<PLYSurfaceLoader *>(ptr);
     
     loader->read_vertex_coordinate(index, ply_get_argument_value(argument));
     
     return 1;
 }
 
-static int face_cb(p_ply_argument argument)
+static int
+face_cb(p_ply_argument argument)
 {  
     void *ptr;
     ply_get_argument_user_data(argument, &ptr, NULL);
     
-    PLYSurfaceLoader *loader = (PLYSurfaceLoader *) ptr;
+    PLYSurfaceLoader *loader = static_cast<PLYSurfaceLoader *>(ptr);
     
     long length, index;
     ply_get_argument_property(argument, NULL, &length, &index);
@@ -58,7 +60,7 @@ static int face_cb(p_ply_argument argument)
 }
 
 /**
-   Loads and parses the contents of a PLY file into a Surface.
+   Loads and parses the contents of a PLY file into a surface->
 
    @param[in]   surface    Surface to load to.
    @param[in]   filename   Filename pointing to the PLY file to load.
@@ -66,11 +68,11 @@ static int face_cb(p_ply_argument argument)
    @returns true on success.
 */
 bool
-PLYSurfaceLoader::load(Surface &surface, const string &filename)
+PLYSurfaceLoader::load(shared_ptr<Surface> surface, const string &filename)
 {
-    cout << "Surface " << surface.id << ": Loading from " << filename << "." << endl;
+    cout << "Surface " << surface->id << ": Loading from " << filename << "." << endl;
     
-    this->surface = &surface;
+    this->surface = surface;
     
     current_panel = 0;
     
@@ -95,10 +97,10 @@ PLYSurfaceLoader::load(Surface &surface, const string &filename)
     ply_close(ply);
     
     // Compute surface topology:
-    surface.compute_topology();
+    surface->compute_topology();
     
     // Compute panel geometry:
-    surface.compute_geometry();
+    surface->compute_geometry();
     
     // Done:
     return true;
@@ -116,7 +118,7 @@ PLYSurfaceLoader::read_vertex_coordinate(int index, double value)
         // This is the last coordinate.  Process vertex.
         surface->nodes.push_back(current_point);      
             
-        vector<int> *neighbor_list = new vector<int>;
+        shared_ptr<vector<int> > neighbor_list = make_shared<vector<int> >();
         surface->node_panel_neighbors.push_back(neighbor_list);
     }
 }

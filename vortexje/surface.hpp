@@ -9,6 +9,8 @@
 #ifndef __SURFACE_HPP__
 #define __SURFACE_HPP__
 
+#include <memory>
+#include <utility>
 #include <map>
 #include <string>
 
@@ -61,7 +63,7 @@ public:
     /**
        Node number to neigboring panel numbers map.
     */
-    std::vector<std::vector<int> *> node_panel_neighbors;
+    std::vector<std::shared_ptr<std::vector<int> > > node_panel_neighbors;
     
     /**
        Panel number to comprising vertex numbers map.
@@ -69,9 +71,14 @@ public:
     std::vector<std::vector<int> > panel_nodes;
     
     /**
-       Panel number to neighboring panel numbers map.
+       Panel number to (edge number to (neighboring panel number, edge number)) map.
     */
-    std::vector<std::vector<int> > panel_neighbors;
+    std::vector<std::map<int, std::pair<int, int> > > panel_neighbors;
+    
+    /**
+       Panel number to comprising vertex points (in the panel coordinate system) map.
+    */
+    std::vector<std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > panel_transformed_points;
     
     void rotate(const Eigen::Vector3d &axis, double angle);
     virtual void transform(const Eigen::Matrix3d &transformation);
@@ -88,8 +95,6 @@ public:
     
     double panel_diameter(int panel) const;
     
-    Eigen::Vector3d scalar_field_gradient(const Eigen::VectorXd &scalar_field, int offset, int this_panel) const;
-    
     virtual void source_and_doublet_influence(const Eigen::Vector3d &x, int this_panel, double &source_influence, double &doublet_influence) const;
     
     double source_influence(const Eigen::Vector3d &x, int this_panel) const;
@@ -98,13 +103,13 @@ public:
     virtual Eigen::Vector3d source_unit_velocity(const Eigen::Vector3d &x, int this_panel) const;
     virtual Eigen::Vector3d vortex_ring_unit_velocity(const Eigen::Vector3d &x, int this_panel) const;
     
-    double doublet_influence(const Surface &other, int other_panel, int this_panel) const;
-    double source_influence(const Surface &other, int other_panel, int this_panel) const;
+    double doublet_influence(const std::shared_ptr<Surface> &other, int other_panel, int this_panel) const;
+    double source_influence(const std::shared_ptr<Surface> &other, int other_panel, int this_panel) const;
     
-    void source_and_doublet_influence(const Surface &other, int other_panel, int this_panel, double &source_influence, double &doublet_influence) const;
+    void source_and_doublet_influence(const std::shared_ptr<Surface> &other, int other_panel, int this_panel, double &source_influence, double &doublet_influence) const;
     
-    Eigen::Vector3d source_unit_velocity(const Surface &other, int other_panel, int this_panel) const;
-    Eigen::Vector3d vortex_ring_unit_velocity(const Surface &other, int other_panel, int this_panel) const;
+    Eigen::Vector3d source_unit_velocity(const std::shared_ptr<Surface> &other, int other_panel, int this_panel) const;
+    Eigen::Vector3d vortex_ring_unit_velocity(const std::shared_ptr<Surface> &other, int other_panel, int this_panel) const;
     
 protected:
     /**
@@ -123,11 +128,6 @@ protected:
     std::vector<Eigen::Transform<double, 3, Eigen::Affine>, Eigen::aligned_allocator<Eigen::Transform<double, 3, Eigen::Affine> > > panel_coordinate_transformations;
     
     /**
-       Panel number to comprising vertex points (in the panel coordinate system) map.
-    */
-    std::vector<std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > panel_transformed_points;
-    
-    /**
        Panel number to surface area map.
     */
     std::vector<double> panel_surface_areas;
@@ -136,8 +136,6 @@ protected:
        Panel number to diameter map.
     */
     std::vector<double> panel_diameters;
-    
-    void clear_node_panel_neighbors();
 };
 
 };

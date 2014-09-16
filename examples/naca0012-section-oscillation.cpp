@@ -6,6 +6,7 @@
 // Authors: Jorn Baayen <jorn.baayen@baayen-heinz.com>
 //
 
+#include <cmath>
 #include <iostream>
 #include <fstream>
 
@@ -18,6 +19,8 @@ using namespace std;
 using namespace Eigen;
 using namespace Vortexje;
 
+static const double pi = 3.141592653589793238462643383279502884;
+
 int
 main (int argc, char **argv)
 {
@@ -26,9 +29,9 @@ main (int argc, char **argv)
     Parameters::convect_wake       = true;
     
     // Create wing:
-    LiftingSurface wing;
+    shared_ptr<LiftingSurface> wing(new LiftingSurface());
     
-    LiftingSurfaceBuilder surface_builder(wing);
+    LiftingSurfaceBuilder surface_builder(*wing);
 
     const double chord = 0.75;
     const double span = 4.5;
@@ -62,13 +65,13 @@ main (int argc, char **argv)
     surface_builder.finish(node_strips, panel_strips, trailing_edge_point_id);
     
     // Create body:
-    Body body(string("section"));
-    body.add_lifting_surface(wing);
+    shared_ptr<Body> body(new Body(string("section")));
+    body->add_lifting_surface(wing);
     
     // Set up oscillation:
-    double alpha_max = 10.0 / 180.0 * M_PI;
+    double alpha_max = 10.0 / 180.0 * pi;
     
-    double omega = 2 * M_PI / 1.0;
+    double omega = 2 * pi / 1.0;
     
     // Set up solver:
     Solver solver("naca0012-section-oscillation-log");
@@ -117,11 +120,11 @@ main (int argc, char **argv)
         // Rotate wing:
         alpha = alpha_max * sin(omega * t);
         Quaterniond attitude = AngleAxis<double>(alpha, Vector3d::UnitZ()) * Quaterniond(1, 0, 0, 0);
-        body.set_attitude(attitude);
+        body->set_attitude(attitude);
         
         // Update rotational velocity:
         double dalphadt = alpha_max * omega * cos(omega * t);
-        body.set_rotational_velocity(Vector3d(0, 0, dalphadt));
+        body->set_rotational_velocity(Vector3d(0, 0, dalphadt));
         
         // Update wake:
         solver.update_wakes(dt);

@@ -19,7 +19,7 @@ using namespace Vortexje;
    
    @param[in]   lifting_surface   Associated lifting surface.
 */
-Wake::Wake(LiftingSurface &lifting_surface): lifting_surface(lifting_surface)
+Wake::Wake(shared_ptr<LiftingSurface> lifting_surface): lifting_surface(lifting_surface)
 {
 }
 
@@ -31,14 +31,14 @@ Wake::add_layer()
 {
     // Is this the first layer?
     bool first_layer;
-    if (n_nodes() < lifting_surface.n_spanwise_nodes())
+    if (n_nodes() < lifting_surface->n_spanwise_nodes())
         first_layer = true;
     else
         first_layer = false;
         
     // Add layer of nodes at trailing edge, and add panels if necessary:
-    for (int k = 0; k < lifting_surface.n_spanwise_nodes(); k++) {
-        Vector3d new_point = lifting_surface.nodes[lifting_surface.trailing_edge_node(k)];
+    for (int k = 0; k < lifting_surface->n_spanwise_nodes(); k++) {
+        Vector3d new_point = lifting_surface->nodes[lifting_surface->trailing_edge_node(k)];
         
         int node = n_nodes();
         nodes.push_back(new_point);
@@ -46,39 +46,22 @@ Wake::add_layer()
         if (k > 0 && !first_layer) {
             vector<int> vertices;
             vertices.push_back(node - 1);
-            vertices.push_back(node - 1 - lifting_surface.n_spanwise_nodes());
-            vertices.push_back(node - lifting_surface.n_spanwise_nodes());
+            vertices.push_back(node - 1 - lifting_surface->n_spanwise_nodes());
+            vertices.push_back(node - lifting_surface->n_spanwise_nodes());
             vertices.push_back(node);
             
-            int panel = n_panels();
             panel_nodes.push_back(vertices);
         
-            vector<int> local_panel_neighbors;
-            if (panel - lifting_surface.n_spanwise_panels() >= 0) {
-                local_panel_neighbors.push_back(panel - lifting_surface.n_spanwise_panels());
-                panel_neighbors[panel - lifting_surface.n_spanwise_panels()].push_back(panel);
-            }
-            if (k > 1) {
-                local_panel_neighbors.push_back(panel - 1);
-                panel_neighbors[panel - 1].push_back(panel);
-            }
-            
+            map<int, pair<int, int> > local_panel_neighbors;
             panel_neighbors.push_back(local_panel_neighbors);
             
-            vector<int> *local_node_panel_neighbors = new vector<int>;
-            local_node_panel_neighbors->push_back(panel);
-            node_panel_neighbors.push_back(local_node_panel_neighbors);
-            
-            node_panel_neighbors[node - 1]->push_back(panel);
-            if (node - 1 - lifting_surface.n_spanwise_nodes() >= 0) {
-                node_panel_neighbors[node - lifting_surface.n_spanwise_nodes()]->push_back(panel); 
-                node_panel_neighbors[node - 1 - lifting_surface.n_spanwise_nodes()]->push_back(panel);
-            }
+            shared_ptr<vector<int> > empty = make_shared<vector<int> >();
+            node_panel_neighbors.push_back(empty);
             
             doublet_coefficients.push_back(0);
 
         } else {
-            vector<int> *empty = new vector<int>;
+            shared_ptr<vector<int> > empty = make_shared<vector<int> >();
             node_panel_neighbors.push_back(empty);
         }
     }
@@ -94,12 +77,12 @@ Wake::add_layer()
 void
 Wake::translate_trailing_edge(const Eigen::Vector3d &translation)
 {
-    if (n_nodes() < lifting_surface.n_spanwise_nodes())
+    if (n_nodes() < lifting_surface->n_spanwise_nodes())
         return;
         
     int k0;
     if (Parameters::convect_wake)
-        k0 = n_nodes() - lifting_surface.n_spanwise_nodes();
+        k0 = n_nodes() - lifting_surface->n_spanwise_nodes();
     else
         k0 = 0;
         
@@ -117,12 +100,12 @@ Wake::translate_trailing_edge(const Eigen::Vector3d &translation)
 void
 Wake::transform_trailing_edge(const Eigen::Transform<double, 3, Eigen::Affine> &transformation)
 {
-    if (n_nodes() < lifting_surface.n_spanwise_nodes())
+    if (n_nodes() < lifting_surface->n_spanwise_nodes())
         return;
         
     int k0;
     if (Parameters::convect_wake)
-        k0 = n_nodes() - lifting_surface.n_spanwise_nodes();
+        k0 = n_nodes() - lifting_surface->n_spanwise_nodes();
     else
         k0 = 0;
         

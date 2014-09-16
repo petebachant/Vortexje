@@ -6,6 +6,7 @@
 // Authors: Jorn Baayen <jorn.baayen@baayen-heinz.com>
 //
 
+#include <cmath>
 #include <iostream>
 
 #include <vortexje/solver.hpp>
@@ -15,6 +16,8 @@
 using namespace std;
 using namespace Eigen;
 using namespace Vortexje;
+
+static const double pi = 3.141592653589793238462643383279502884;
 
 #define TEST_TOLERANCE 2e-2
 
@@ -26,9 +29,9 @@ run_test(double alpha)
     Parameters::convect_wake       = false;
     
     // Create wing:
-    LiftingSurface wing;
+    shared_ptr<LiftingSurface> wing(new LiftingSurface());
     
-    LiftingSurfaceBuilder surface_builder(wing);
+    LiftingSurfaceBuilder surface_builder(*wing);
 
     const double chord = 0.75;
     const double span = 4.5;
@@ -62,11 +65,11 @@ run_test(double alpha)
     surface_builder.finish(node_strips, panel_strips, trailing_edge_point_id);
 
     // Rotate by angle of attack:
-    wing.rotate(Vector3d::UnitZ(), -alpha);
+    wing->rotate(Vector3d::UnitZ(), -alpha);
     
     // Create surface body:
-    Body body(string("test-wing"));
-    body.add_lifting_surface(wing);
+    shared_ptr<Body> body(new Body(string("test-wing")));
+    body->add_lifting_surface(wing);
     
     // Set up solver:
     Solver solver("test-naca0012-log");
@@ -125,7 +128,7 @@ main (int argc, char **argv)
     for (unsigned int i = 0; i < reference_results.size(); i++) {        
         Vector3d &reference_result = reference_results[i];
         
-        Vector2d res = run_test(reference_result(0) / 180.0 * M_PI);
+        Vector2d res = run_test(reference_result(0) / 180.0 * pi);
         
         if (fabs(res[0] - reference_result(1)) > TEST_TOLERANCE) {
             cerr << " *** TEST FAILED *** " << endl;

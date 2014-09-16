@@ -6,6 +6,7 @@
 // Authors: Jorn Baayen <jorn.baayen@baayen-heinz.com>
 //
 
+#include <cmath>
 #include <iostream>
 
 #include <vortexje/shape-generators/airfoils/naca4-airfoil-generator.hpp>
@@ -14,11 +15,13 @@ using namespace std;
 using namespace Eigen;
 using namespace Vortexje;
 
+static const double pi = 3.141592653589793238462643383279502884;
+
 // Cosine rule:
 static double
 cosine_rule(int n_points, int i)
 {
-    return 0.5 * (1 - cos(M_PI * i / (double) n_points));
+    return 0.5 * (1 - cos(pi * i / (double) n_points));
 }
 
 // NACA airfoil generation:

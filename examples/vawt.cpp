@@ -6,6 +6,10 @@
 // Authors: Jorn Baayen <jorn.baayen@baayen-heinz.com>
 //
 
+#include <cmath>
+#include <iostream>
+#include <fstream>
+
 #include <vortexje/solver.hpp>
 #include <vortexje/lifting-surface-builder.hpp>
 #include <vortexje/shape-generators/airfoils/naca4-airfoil-generator.hpp>
@@ -14,12 +18,11 @@
 #include <vortexje/boundary-layers/dummy-boundary-layer.hpp>
 #include <vortexje/empirical-wakes/ramasamy-leishman-wake.hpp>
 
-#include <iostream>
-#include <fstream>
-
 using namespace std;
 using namespace Eigen;
 using namespace Vortexje;
+
+static const double pi = 3.141592653589793238462643383279502884;
 
 #define N_BLADES        2
 #define MILL_RADIUS     2.5
@@ -71,7 +74,7 @@ public:
         Vector3d translation(-chord / 3.0, 0.0, -span / 2.0);
         translate(translation);
         
-        rotate(Vector3d::UnitZ(), -M_PI / 2.0);
+        rotate(Vector3d::UnitZ(), -pi / 2.0);
     }
 };
 
@@ -136,33 +139,24 @@ public:
         
 #ifdef INCLUDE_TOWER
         // Initialize tower:
-        Surface *tower = new Tower();
-        add_non_lifting_surface(*tower);
-        
-        allocated_surfaces.push_back(tower);
+        shared_ptr<Tower> tower(new Tower());
+        add_non_lifting_surface(tower);
 #endif
         
         // Initialize blades:
         for (int i = 0; i < n_blades; i++) {
-            Blade *blade = new Blade();
+            shared_ptr<Blade> blade(new Blade());
             
             Vector3d translation(rotor_radius, 0, 0);
             blade->translate(translation);
             
-            double theta_blade = theta_0 + 2 * M_PI / n_blades * i;
+            double theta_blade = theta_0 + 2 * pi / n_blades * i;
             blade->rotate(Vector3d::UnitZ(), theta_blade);
             
             blade->translate(position);
             
-            BoundaryLayer *boundary_layer = new DummyBoundaryLayer();
-            
-            Wake *wake = new RamasamyLeishmanWake(*blade);
-            
-            add_lifting_surface(*blade, *boundary_layer, *wake);
-            
-            allocated_boundary_layers.push_back(boundary_layer);
-            allocated_surfaces.push_back(blade);
-            allocated_surfaces.push_back(wake);
+            shared_ptr<RamasamyLeishmanWake> wake(new RamasamyLeishmanWake(blade));           
+            add_lifting_surface(blade, wake);
         }
     }
     
@@ -185,12 +179,12 @@ main (int argc, char **argv)
     // Set up VAWT:
     Vector3d position(0, 0, 0);
     
-    VAWT vawt(string("vawt"),
-              MILL_RADIUS,
-              N_BLADES,
-              position,
-              M_PI / 6.0,
-              TIP_SPEED_RATIO * WIND_VELOCITY / MILL_RADIUS);
+    shared_ptr<VAWT> vawt(new VAWT(string("vawt"),
+                                   MILL_RADIUS,
+                                   N_BLADES,
+                                   position,
+                                   pi / 6.0,
+                                   TIP_SPEED_RATIO * WIND_VELOCITY / MILL_RADIUS));
     
     // Set up solver:
     Solver solver("vawt-log");
@@ -227,7 +221,7 @@ main (int argc, char **argv)
         f << M(2) << endl;
 
         // Rotate blades:
-        vawt.rotate(dt);
+        vawt->rotate(dt);
         
         // Update wakes:
         solver.update_wakes(dt);

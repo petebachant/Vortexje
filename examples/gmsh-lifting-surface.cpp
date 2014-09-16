@@ -6,6 +6,7 @@
 // Authors: Jorn Baayen <jorn.baayen@baayen-heinz.com>
 //
 
+#include <cmath>
 #include <iostream>
 
 #include <vortexje/solver.hpp>
@@ -18,6 +19,8 @@ using namespace std;
 using namespace Eigen;
 using namespace Vortexje;
 
+static const double pi = 3.141592653589793238462643383279502884;
+
 // Main:
 int
 main (int argc, char **argv)
@@ -26,7 +29,7 @@ main (int argc, char **argv)
     Parameters::convect_wake = true;
     
     // Create lifting surface object:
-    LiftingSurface wing;
+    shared_ptr<LiftingSurface> wing(new LiftingSurface());
     
     // Load Gmsh mesh file:
     GmshSurfaceLoader loader;
@@ -39,40 +42,40 @@ main (int argc, char **argv)
     int n_nodes_per_airfoil = 32;
     int n_airfoils = 21;
     
-    wing.upper_nodes.resize(n_nodes_per_airfoil / 2 + 1, n_airfoils);
-    wing.lower_nodes.resize(n_nodes_per_airfoil / 2 + 1, n_airfoils);
+    wing->upper_nodes.resize(n_nodes_per_airfoil / 2 + 1, n_airfoils);
+    wing->lower_nodes.resize(n_nodes_per_airfoil / 2 + 1, n_airfoils);
     for (int j = 0; j < n_airfoils; j++) {
         for (int i = 0; i < n_nodes_per_airfoil / 2 + 1; i++) { 
-            wing.upper_nodes(i, j) = j * n_nodes_per_airfoil + i;
+            wing->upper_nodes(i, j) = j * n_nodes_per_airfoil + i;
             
             if (i == 0)
-                wing.lower_nodes(i, j) = j * n_nodes_per_airfoil;
+                wing->lower_nodes(i, j) = j * n_nodes_per_airfoil;
             else
-                wing.lower_nodes(i, j) = j * n_nodes_per_airfoil + (n_nodes_per_airfoil - i);
+                wing->lower_nodes(i, j) = j * n_nodes_per_airfoil + (n_nodes_per_airfoil - i);
         }
     }
     
-    wing.upper_panels.resize(n_nodes_per_airfoil / 2, n_airfoils - 1);
-    wing.lower_panels.resize(n_nodes_per_airfoil / 2, n_airfoils - 1);
+    wing->upper_panels.resize(n_nodes_per_airfoil / 2, n_airfoils - 1);
+    wing->lower_panels.resize(n_nodes_per_airfoil / 2, n_airfoils - 1);
     for (int j = 0; j < n_airfoils - 1; j++) {
         for (int i = 0; i < n_nodes_per_airfoil / 2; i++) {
-            wing.upper_panels(i, j) = j * n_nodes_per_airfoil + i;
+            wing->upper_panels(i, j) = j * n_nodes_per_airfoil + i;
             
-            wing.lower_panels(i, j) = j * n_nodes_per_airfoil + (n_nodes_per_airfoil - 1 - i);
+            wing->lower_panels(i, j) = j * n_nodes_per_airfoil + (n_nodes_per_airfoil - 1 - i);
         }
     }
     
     // Terminate neighbor relationships across trailing edge.
-    for (int i = 0; i < wing.n_spanwise_panels(); i++)
-        wing.cut_panels(wing.trailing_edge_upper_panel(i), wing.trailing_edge_lower_panel(i));
+    for (int i = 0; i < wing->n_spanwise_panels(); i++)
+        wing->cut_panels(wing->trailing_edge_upper_panel(i), wing->trailing_edge_lower_panel(i));
     
     // Prescribe angle of attack:
-    double alpha = 5.0 / 180.0 * M_PI;
-    wing.rotate(Vector3d::UnitZ(), -alpha);
+    double alpha = 5.0 / 180.0 * pi;
+    wing->rotate(Vector3d::UnitZ(), -alpha);
     
     // Create surface body:
-    Body body(string("section"));
-    body.add_lifting_surface(wing);
+    shared_ptr<Body> body(new Body(string("section")));
+    body->add_lifting_surface(wing);
     
     // Set up solver:
     Solver solver("gmsh-lifting-surface-log");

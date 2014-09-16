@@ -14,7 +14,6 @@
 #include <algorithm>
 
 #include <Eigen/Geometry>
-#include <Eigen/SVD>
 
 #include <vortexje/surface.hpp>
 #include <vortexje/parameters.hpp>
@@ -27,7 +26,8 @@ using namespace Vortexje;
 static int id_counter = 0;
 
 // Avoid having to divide by 4 pi all the time:
-static const double one_over_4pi = 1.0 / (4 * M_PI);
+static const double pi = 3.141592653589793238462643383279502884;
+static const double one_over_4pi = 1.0 / (4 * pi);
 
 /**
    Constructs an empty surface.
@@ -39,38 +39,10 @@ Surface::Surface()
 }
 
 /**
-   Clears the node-panel neighbor data structure, and frees up its memory.
-*/
-void
-Surface::clear_node_panel_neighbors()
-{
-    vector<vector<int> *> unique;
-    
-    for (int i = 0; i < (int) node_panel_neighbors.size(); i++) {
-        bool found = false;
-        for (int j = 0; j < (int) unique.size(); j++) {
-            if (node_panel_neighbors[i] == unique[j]) {
-                found = true;
-                break;
-            }
-        }
-        
-        if (!found)
-            unique.push_back(node_panel_neighbors[i]);
-    }
-    
-    for (int i = 0; i < (int) unique.size(); i++)
-        delete unique[i];
-        
-    node_panel_neighbors.clear();
-}
-
-/**
    Destructor.
 */
 Surface::~Surface()
 {
-    clear_node_panel_neighbors();
 }
 
 /**
@@ -144,29 +116,56 @@ Surface::compute_topology()
 {   
     // Compute panel neighbors:
     for (int i = 0; i < (int) panel_nodes.size(); i++) {
-        vector<int> single_panel_potential_neighbors;
-        vector<int> single_panel_neighbors;
+        map<int, pair<int, int> > single_panel_neighbors;
         
-        for (int j = 0; j < (int) panel_nodes[i].size(); j++) {
-            int node = panel_nodes[i][j];
+        // Every node gives rise to one edge, which gives rise to at most one neighbor.
+        for (int j = 0; j < (int) panel_nodes[i].size(); j++) {          
+            // Compute index for next node.
+            int next_j;
+            if (j == (int) panel_nodes[i].size() - 1)
+                next_j = 0;
+            else
+                next_j = j + 1;
+                
+            int node      = panel_nodes[i][j];
+            int next_node = panel_nodes[i][next_j];
+            
             for (int k = 0; k < (int) node_panel_neighbors[node]->size(); k++) {
                 int potential_neighbor = (*node_panel_neighbors[node])[k];
                 if (potential_neighbor == i)
                     continue;
                 
-                bool found = false;
-                for (int l = 0; l < (int) single_panel_potential_neighbors.size(); l++) {
-                    if (potential_neighbor == single_panel_potential_neighbors[l]) {
-                        found = true;
-                        break;
+                // Is this neighbor shared with the next node?   
+                if (find(node_panel_neighbors[next_node]->begin(),
+                         node_panel_neighbors[next_node]->end(),
+                         potential_neighbor) != node_panel_neighbors[next_node]->end()) {
+                    // Yes: Establish neighbor relationship.
+                    int potential_neighbor_edge = -1;
+                    for (int l = 0; l < (int) panel_nodes[potential_neighbor].size(); l++) {
+                        int next_l;
+                        if (l == (int) panel_nodes[potential_neighbor].size() - 1)
+                            next_l = 0;
+                        else
+                            next_l = l + 1;
+                            
+                        int potential_neighbor_node      = panel_nodes[potential_neighbor][l];
+                        int potential_neighbor_next_node = panel_nodes[potential_neighbor][next_l];
+                            
+                        if (find(node_panel_neighbors[potential_neighbor_node]->begin(),
+                                 node_panel_neighbors[potential_neighbor_node]->end(),
+                                 i) != node_panel_neighbors[potential_neighbor_node]->end() &&
+                            find(node_panel_neighbors[potential_neighbor_next_node]->begin(),
+                                 node_panel_neighbors[potential_neighbor_next_node]->end(),
+                                 i) != node_panel_neighbors[potential_neighbor_next_node]->end()) {
+                            potential_neighbor_edge = l;
+                            break;
+                        }
                     }
+                    
+                    assert(potential_neighbor_edge >= 0);
+                    
+                    single_panel_neighbors[j] = make_pair(potential_neighbor, potential_neighbor_edge);
                 }
-                
-                // Must have two nodes in common.
-                if (found)
-                    single_panel_neighbors.push_back(potential_neighbor);
-                else
-                    single_panel_potential_neighbors.push_back(potential_neighbor);
             }
         }
         
@@ -193,10 +192,14 @@ Surface::cut_panels(int panel_a, int panel_b)
             panel_ids[1] = panel_a;
         }
         
-        vector<int> &single_panel_neighbors = panel_neighbors[panel_ids[0]];
-        vector<int>::iterator neighbor_position =
-            find(single_panel_neighbors.begin(), single_panel_neighbors.end(), panel_ids[1]);
-        single_panel_neighbors.erase(neighbor_position);
+        map<int, pair<int, int> > &single_panel_neighbors = panel_neighbors[panel_ids[0]];
+        map<int, pair<int, int> >::iterator it;
+        for (it = single_panel_neighbors.begin(); it != single_panel_neighbors.end(); ) {
+            if (it->second.first == panel_ids[1])
+                single_panel_neighbors.erase(it++);
+            else    
+                it++;
+        }
     }  
 }
 
@@ -276,9 +279,9 @@ Surface::compute_geometry()
         const Vector3d &normal = panel_normal(i);
         
         Matrix3d rotation;
-        rotation.block<1, 3>(0, 0) = AB;
-        rotation.block<1, 3>(1, 0) = normal.cross(AB);
-        rotation.block<1, 3>(2, 0) = normal;
+        rotation.row(0) = AB;
+        rotation.row(1) = normal.cross(AB).normalized(); // Should be normalized already.
+        rotation.row(2) = normal;
         
         Transform<double, 3, Affine> transformation = rotation * Translation<double, 3>(-panel_collocation_point(i, false));
 
@@ -507,58 +510,6 @@ Surface::panel_diameter(int panel) const
     return panel_diameters[panel];
 }
 
-/**
-   Computes the on-body gradient of a scalar field.
-   
-   @param[in]   scalar_field   Scalar field, ordered by panel number.
-   @param[in]   offset         Scalar field offset
-   @param[in]   this_panel     Panel on which the on-body gradient is evaluated.
-   
-   @returns On-body gradient.
-*/
-Vector3d
-Surface::scalar_field_gradient(const Eigen::VectorXd &scalar_field, int offset, int this_panel) const
-{
-    // We compute the scalar field gradient by fitting a linear model.
-
-    // Set up a transformation such that panel normal becomes unit Z vector:
-    Transform<double, 3, Affine> transformation = panel_coordinate_transformation(this_panel);
-    
-    // Set up model equations:
-    MatrixXd A(panel_neighbors[this_panel].size() + 1, 3);
-    VectorXd b(panel_neighbors[this_panel].size() + 1);
-    
-    // The model is centered on this_panel:
-    A(0, 0) = 0.0;
-    A(0, 1) = 0.0;
-    A(0, 2) = 1.0;
-    b(0) = scalar_field(offset + this_panel);
-    
-    for (int i = 0; i < (int) panel_neighbors[this_panel].size(); i++) {
-        int neighbor_panel = panel_neighbors[this_panel][i];
-        
-        // Add neighbor relative to this_panel:
-        Vector3d neighbor_vector_normalized = transformation * panel_collocation_point(neighbor_panel, false);
-    
-        A(i + 1, 0) = neighbor_vector_normalized(0);
-        A(i + 1, 1) = neighbor_vector_normalized(1);
-        A(i + 1, 2) = 1.0;
-    
-        b(i + 1) = scalar_field(offset + neighbor_panel);
-    }
-    
-    // Solve model equations:
-    JacobiSVD<MatrixXd> svd(A, ComputeThinU | ComputeThinV);
-    
-    VectorXd model_coefficients = svd.solve(b);
-    
-    // Extract gradient in local frame:
-    Vector3d gradient_normalized = Vector3d(model_coefficients(0), model_coefficients(1), 0.0);
-    
-    // Transform gradient to global frame:
-    return transformation.linear().transpose() * gradient_normalized;
-}
-
 // Simultaneously compute influence of source and doublet panel edges on given point.
 static void
 source_and_doublet_edge_influence(const Vector3d &x, const Vector3d &node_a, const Vector3d &node_b, double *source_edge_influence, double *doublet_edge_influence)
@@ -624,14 +575,14 @@ Surface::source_and_doublet_influence(const Eigen::Vector3d &x, int this_panel, 
     doublet_influence = 0.0;
     
     for (int i = 0; i < (int) panel_nodes[this_panel].size(); i++) {
-        int prev_idx;
-        if (i == 0)
-            prev_idx = panel_nodes[this_panel].size() - 1;
+        int next_idx;
+        if (i == (int) panel_nodes[this_panel].size() - 1)
+            next_idx = 0;
         else
-            prev_idx = i - 1;
+            next_idx = i + 1;
             
-        const Vector3d &node_a = panel_transformed_points[this_panel][prev_idx];
-        const Vector3d &node_b = panel_transformed_points[this_panel][i];
+        const Vector3d &node_a = panel_transformed_points[this_panel][i];
+        const Vector3d &node_b = panel_transformed_points[this_panel][next_idx];
         
         double source_edge_influence, doublet_edge_influence;
         
@@ -664,14 +615,14 @@ Surface::source_influence(const Eigen::Vector3d &x, int this_panel) const
     // Compute influence coefficient according to Hess:
     double influence = 0.0;
     for (int i = 0; i < (int) panel_nodes[this_panel].size(); i++) {
-        int prev_idx;
-        if (i == 0)
-            prev_idx = panel_nodes[this_panel].size() - 1;
+        int next_idx;
+        if (i == (int) panel_nodes[this_panel].size() - 1)
+            next_idx = 0;
         else
-            prev_idx = i - 1;
+            next_idx = i + 1;
             
-        const Vector3d &node_a = panel_transformed_points[this_panel][prev_idx];
-        const Vector3d &node_b = panel_transformed_points[this_panel][i];
+        const Vector3d &node_a = panel_transformed_points[this_panel][i];
+        const Vector3d &node_b = panel_transformed_points[this_panel][next_idx];
         
         double edge_influence;
         source_and_doublet_edge_influence(x_normalized, node_a, node_b, &edge_influence, NULL);
@@ -701,14 +652,14 @@ Surface::doublet_influence(const Eigen::Vector3d &x, int this_panel) const
     // Compute influence coefficient according to Hess:
     double influence = 0.0;
     for (int i = 0; i < (int) panel_nodes[this_panel].size(); i++) {
-        int prev_idx;
-        if (i == 0)
-            prev_idx = panel_nodes[this_panel].size() - 1;
+        int next_idx;
+        if (i == (int) panel_nodes[this_panel].size() - 1)
+            next_idx = 0;
         else
-            prev_idx = i - 1;
+            next_idx = i + 1;
             
-        const Vector3d &node_a = panel_transformed_points[this_panel][prev_idx];
-        const Vector3d &node_b = panel_transformed_points[this_panel][i];
+        const Vector3d &node_a = panel_transformed_points[this_panel][i];
+        const Vector3d &node_b = panel_transformed_points[this_panel][next_idx];
         
         double edge_influence;
         source_and_doublet_edge_influence(x_normalized, node_a, node_b, NULL, &edge_influence);
@@ -777,14 +728,14 @@ Surface::source_unit_velocity(const Eigen::Vector3d &x, int this_panel) const
     // Compute influence coefficient according to Hess:
     Vector3d velocity(0, 0, 0);
     for (int i = 0; i < (int) panel_nodes[this_panel].size(); i++) {
-        int prev_idx;
-        if (i == 0)
-            prev_idx = panel_nodes[this_panel].size() - 1;
+        int next_idx;
+        if (i == (int) panel_nodes[this_panel].size() - 1)
+            next_idx = 0;
         else
-            prev_idx = i - 1;
+            next_idx = i + 1;
             
-        const Vector3d &node_a = panel_transformed_points[this_panel][prev_idx];
-        const Vector3d &node_b = panel_transformed_points[this_panel][i];
+        const Vector3d &node_a = panel_transformed_points[this_panel][i];
+        const Vector3d &node_b = panel_transformed_points[this_panel][next_idx];
         
         velocity += source_edge_unit_velocity(x_normalized, node_a, node_b);
     }   
@@ -852,12 +803,12 @@ Surface::vortex_ring_unit_velocity(const Eigen::Vector3d &x, int this_panel) con
    @returns Influence coefficient.
 */
 double
-Surface::doublet_influence(const Surface &other, int other_panel, int this_panel) const
+Surface::doublet_influence(const shared_ptr<Surface> &other, int other_panel, int this_panel) const
 { 
-    if ((this == &other) && (this_panel == other_panel))
+    if ((this == other.get()) && (this_panel == other_panel))
         return -0.5;
     else
-        return doublet_influence(other.panel_collocation_point(other_panel, true), this_panel);
+        return doublet_influence(other->panel_collocation_point(other_panel, true), this_panel);
 }
 
 /**
@@ -872,9 +823,9 @@ Surface::doublet_influence(const Surface &other, int other_panel, int this_panel
    @returns Influence coefficient.
 */
 double
-Surface::source_influence(const Surface &other, int other_panel, int this_panel) const
+Surface::source_influence(const shared_ptr<Surface> &other, int other_panel, int this_panel) const
 {
-    return source_influence(other.panel_collocation_point(other_panel, true), this_panel);
+    return source_influence(other->panel_collocation_point(other_panel, true), this_panel);
 }
 
 /**
@@ -887,15 +838,15 @@ Surface::source_influence(const Surface &other, int other_panel, int this_panel)
    @param[out]  doublet_influence   Doublet influence value.
 */
 void
-Surface::source_and_doublet_influence(const Surface &other, int other_panel, int this_panel, double &source_influence, double &doublet_influence) const
+Surface::source_and_doublet_influence(const shared_ptr<Surface> &other, int other_panel, int this_panel, double &source_influence, double &doublet_influence) const
 {
-    if ((this == &other) && (this_panel == other_panel)) {
+    if ((this == other.get()) && (this_panel == other_panel)) {
         doublet_influence = -0.5;
         
         source_influence = this->source_influence(other, other_panel, this_panel);
         
     } else
-        source_and_doublet_influence(other.panel_collocation_point(other_panel, true), this_panel, source_influence, doublet_influence);
+        source_and_doublet_influence(other->panel_collocation_point(other_panel, true), this_panel, source_influence, doublet_influence);
 }
 
 /**
@@ -910,9 +861,9 @@ Surface::source_and_doublet_influence(const Surface &other, int other_panel, int
    @returns Velocity induced by the source panel.
 */
 Vector3d
-Surface::source_unit_velocity(const Surface &other, int other_panel, int this_panel) const
+Surface::source_unit_velocity(const shared_ptr<Surface> &other, int other_panel, int this_panel) const
 { 
-    return source_unit_velocity(other.panel_collocation_point(other_panel, true), this_panel);
+    return source_unit_velocity(other->panel_collocation_point(other_panel, true), this_panel);
 }
 
 /**
@@ -927,7 +878,7 @@ Surface::source_unit_velocity(const Surface &other, int other_panel, int this_pa
    @returns Velocity induced by the vortex ring.
 */
 Vector3d
-Surface::vortex_ring_unit_velocity(const Surface &other, int other_panel, int this_panel) const
+Surface::vortex_ring_unit_velocity(const shared_ptr<Surface> &other, int other_panel, int this_panel) const
 {
-    return vortex_ring_unit_velocity(other.panel_collocation_point(other_panel, true), this_panel);
+    return vortex_ring_unit_velocity(other->panel_collocation_point(other_panel, true), this_panel);
 }

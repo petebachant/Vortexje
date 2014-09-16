@@ -10,26 +10,31 @@
 
 using namespace Eigen;
 using namespace Vortexje;
+using namespace std;
 
 /**
    Normally, this function solves the relevant boundary layer equations.  Here, it does nothing.
    
    @param[in]   surface_velocities   (n x 3)-matrix of surface velocities.
+   
+   @returns Always true.
  */
-void
+bool
 DummyBoundaryLayer::recalculate(const MatrixXd &surface_velocities)
 {
+    return true;
 }
 
 /**
    Returns the blowing velocity for the given panel.
    
-   @param[in]   panel   Reference panel.
+   @param[in]   surface   Reference surface.
+   @param[in]   panel     Reference panel.
    
    @returns Blowing velocity for the given panel.
  */
 double
-DummyBoundaryLayer::blowing_velocity(int panel) const
+DummyBoundaryLayer::blowing_velocity(const shared_ptr<Surface> &surface, int panel) const
 {
     return 0.0;
 }
@@ -37,12 +42,13 @@ DummyBoundaryLayer::blowing_velocity(int panel) const
 /**
    Returns the friction force acting on the given panel.
    
-   @param[in]   panel   Reference panel.
+   @param[in]   surface   Reference surface.
+   @param[in]   panel     Reference panel.
    
    @returns Friction force acting on the given panel.
  */
 Vector3d
-DummyBoundaryLayer::friction(int panel) const
+DummyBoundaryLayer::friction(const shared_ptr<Surface> &surface, int panel) const
 {
     return Vector3d(0, 0, 0);
 }
