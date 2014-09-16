@@ -347,18 +347,6 @@ Surface::compute_geometry()
 }
 
 /**
-   Flips panel normals.
-*/
-void
-Surface::flip_normals()
-{
-    for (int i = 0; i < n_panels(); i++) {
-    panel_normals[i].reverse();
-    }
-}
-
-
-/**
    Returns the number of nodes contained in this surface.
    
    @returns Number of nodes.

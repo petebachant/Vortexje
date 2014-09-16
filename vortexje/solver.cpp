@@ -1279,7 +1279,7 @@ Solver::compute_scalar_field_gradient(const Eigen::VectorXd &scalar_field, const
 
 /**
    Computes the surface velocity for the given panel.
-
+   
    @param[in]   surface   Reference surface.
    @param[it]   offset    Doublet coefficien vector offset.
    @param[in]   panel     Reference panel.

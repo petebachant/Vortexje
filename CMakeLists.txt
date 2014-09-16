@@ -50,7 +50,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/vortexje.pc DESTINATION lib/pkgconfig)
 # Build a CPack driven installer package
 include(InstallRequiredSystemLibraries)
 set(CPACK_RESOURCE_FILE_LICENSE  
-    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_PACKAGE_VERSION_MAJOR "${Vortexje_VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${Vortexje_VERSION_MINOR}")
 include(CPack)

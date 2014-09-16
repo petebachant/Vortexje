@@ -48,7 +48,6 @@ public:
     
     void compute_topology();
     void compute_geometry();
-    void flip_normals();
     
     void cut_panels(int panel_a, int panel_b);
     

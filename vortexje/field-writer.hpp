@@ -58,7 +58,7 @@ public:
                                       double x_min, double x_max,
                                       double y_min, double y_max,
                                       double z_min, double z_max,
-                                      int nx, int ny, int nz) = 0;
+                                      double dx, double dy, double dz) = 0;
              
     /**
        Logs the velocity potential scalar field for a specified grid.
